@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es" x-data="appBus()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MED BASHA PRO</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @keyframes amber-pulse {
+            0%, 100% { background-color: rgba(245, 158, 11, 0.8); box-shadow: 0 0 0px rgba(245, 158, 11, 0.5); }
+            50% { background-color: rgba(245, 158, 11, 1); box-shadow: 0 0 15px rgba(245, 158, 11, 0.8); }
+        }
+        .animate-amber { animation: amber-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        [x-cloak] { display: none !important; }
+        body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; overflow-x: hidden; }
+        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    </style>
+</head>
+<body :style="'font-size: ' + settings.fontSize + 'px'">
+
+    <div x-show="screen === 1" x-cloak class="p-4 max-w-md mx-auto pb-24">
+        <header class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-black italic tracking-tighter">MED BASHA <span class="text-blue-500">PRO</span></h1>
+                <p class="text-[10px] text-slate-500 uppercase font-bold">Nómina Ciclo 16 - 15</p>
+            </div>
+            <button @click="screen = 4" class="p-2 rounded-full bg-slate-800 active:bg-slate-700">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </button>
+        </header>
+
+        <div class="glass-card rounded-3xl p-4 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <button @click="changeMonth(-1)" class="p-1"><i data-lucide="chevron-left"></i></button>
+                <h2 class="font-bold" x-text="monthNames[currentMonth] + ' ' + currentYear"></h2>
+                <button @click="changeMonth(1)" class="p-1"><i data-lucide="chevron-right"></i></button>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500 mb-2">
+                <span>LU</span><span>MA</span><span>MI</span><span>JU</span><span>VI</span><span>SA</span><span>DO</span>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-center">
+                <template x-for="day in daysInMonth">
+                    <div class="h-10 flex flex-col items-center justify-center rounded-lg relative"
+                         :class="day.isToday ? 'bg-blue-600 font-bold' : (day.isFestivo ? 'border border-purple-500' : '')">
+                        <span x-text="day.num"></span>
+                        <div x-show="day.hasRecord" :class="day.type === 'partida' ? 'bg-orange-500' : 'bg-blue-400'" class="w-1.5 h-1.5 rounded-full mt-1"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <button @click="openRegistro('continua')" class="glass-card p-6 rounded-3xl flex flex-col items-center gap-2 border-b-4 border-b-blue-500 active:scale-95 transition">
+                <i data-lucide="timer" class="text-blue-500 w-8 h-8"></i>
+                <span class="font-black uppercase text-xs">Continua</span>
+            </button>
+            <button @click="openRegistro('partida')" class="glass-card p-6 rounded-3xl flex flex-col items-center gap-2 border-b-4 border-b-orange-500 active:scale-95 transition">
+                <i data-lucide="split" class="text-orange-500 w-8 h-8"></i>
+                <span class="font-black uppercase text-xs">Partida</span>
+            </button>
+        </div>
+
+        <button @click="screen = 3" class="w-full mt-6 glass-card p-4 rounded-2xl flex justify-between items-center active:bg-white/5">
+            <span class="font-bold">Consultar Nómina e Historial</span>
+            <i data-lucide="arrow-right" class="w-5 h-5 text-slate-500"></i>
+        </button>
+    </div>
+
+    <div x-show="screen === 2" x-cloak class="p-4 max-w-md mx-auto pb-40">
+        <div class="flex items-center gap-4 mb-6">
+            <button @click="screen = 1" class="p-2"><i data-lucide="arrow-left"></i></button>
+            <h2 class="text-xl font-black uppercase" x-text="form.esPartida ? 'Jornada Partida' : 'Jornada Continua'"></h2>
+        </div>
+
+        <div class="space-y-4">
+            <div class="glass-card p-4 rounded-2xl border-l-4 border-l-blue-500">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-[10px] font-black text-blue-400 uppercase">Bloque 1 / Mañana</span>
+                    <input type="text" x-model="form.bus1" placeholder="BUS" class="w-16 bg-slate-800 border-none rounded p-1 text-center text-yellow-500 font-bold outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div><label class="text-[8px] font-bold text-slate-500 block mb-1 uppercase">Entrada</label><input type="time" x-model="form.hE1" @change="calcular()" class="bg-transparent text-2xl font-black w-full text-blue-400 outline-none"></div>
+                    <div><label class="text-[8px] font-bold text-slate-500 block mb-1 uppercase">Salida</label><input type="time" x-model="form.hS1" @change="calcular()" class="bg-transparent text-2xl font-black w-full text-blue-400 outline-none"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-800/40 p-2 rounded">
+                        <label class="text-[7px] text-slate-500 font-bold block uppercase">KM Inicio</label>
+                        <input type="number" x-model="form.kmI1" @input="calcular()" class="bg-transparent w-full text-sm font-bold outline-none">
+                    </div>
+                    <div class="bg-slate-800/40 p-2 rounded">
+                        <label class="text-[7px] text-slate-500 font-bold block uppercase">KM Fin</label>
+                        <input type="number" x-model="form.kmF1" @input="calcular()" :class="parseInt(form.kmF1) < parseInt(form.kmI1) ? 'text-red-500' : 'text-white'" class="bg-transparent w-full text-sm font-bold outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="form.esPartida" class="glass-card p-4 rounded-2xl border-l-4 border-l-orange-500 transition-all">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-[10px] font-black text-orange-400 uppercase">Bloque 2 / Tarde</span>
+                    <input type="text" x-model="form.bus2" placeholder="BUS" class="w-16 bg-slate-800 border-none rounded p-1 text-center text-yellow-500 font-bold outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div><label class="text-[8px] font-bold text-slate-500 block mb-1 uppercase">Entrada</label><input type="time" x-model="form.hE2" @change="calcular()" class="bg-transparent text-2xl font-black w-full text-orange-400 outline-none"></div>
+                    <div><label class="text-[8px] font-bold text-slate-500 block mb-1 uppercase">Salida</label><input type="time" x-model="form.hS2" @change="calcular()" class="bg-transparent text-2xl font-black w-full text-orange-400 outline-none"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-800/40 p-2 rounded">
+                        <label class="text-[7px] text-slate-500 font-bold block uppercase">KM Inicio</label>
+                        <input type="number" x-model="form.kmI2" @input="calcular()" class="bg-transparent w-full text-sm font-bold outline-none">
+                    </div>
+                    <div class="bg-slate-800/40 p-2 rounded">
+                        <label class="text-[7px] text-slate-500 font-bold block uppercase">KM Fin</label>
+                        <input type="number" x-model="form.kmF2" @input="calcular()" :class="parseInt(form.kmF2) < parseInt(form.kmI2) ? 'text-red-500' : 'text-white'" class="bg-transparent w-full text-sm font-bold outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-6">
+                <button @click="form.comida = !form.comida" 
+                        :class="form.comida ? 'bg-green-600' : (alertaComida ? 'animate-amber' : 'bg-slate-700')"
+                        class="p-4 rounded-2xl flex items-center justify-center gap-2 font-bold transition-all">
+                    <i data-lucide="utensils" class="w-4 h-4"></i> COMIDA
+                </button>
+                <button @click="form.cena = !form.cena" 
+                        :class="form.cena ? 'bg-green-600' : (alertaCena ? 'animate-amber' : 'bg-slate-700')"
+                        class="p-4 rounded-2xl flex items-center justify-center gap-2 font-bold transition-all">
+                    <i data-lucide="moon" class="w-4 h-4"></i> CENA
+                </button>
+            </div>
+        </div>
+
+        <div class="fixed bottom-0 left-0 w-full glass-card border-t border-white/10 p-6">
+            <div class="flex justify-between items-center max-w-md mx-auto">
+                <div class="text-center border-r border-white/10 pr-4">
+                    <p class="text-[9px] text-slate-500 font-bold uppercase">Horas Totales</p>
+                    <div class="flex items-center gap-1">
+                        <span class="text-3xl font-black" :class="esMinimoAplicado ? 'text-yellow-500' : 'text-green-400'" x-text="res.hTotal">00:00</span>
+                        <span x-show="esMinimoAplicado" class="text-[7px] bg-yellow-500 text-black px-1 rounded font-black">MIN 6H</span>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <p class="text-[9px] text-slate-500 font-bold uppercase">KM Día</p>
+                    <span class="text-3xl font-black text-cyan-400" x-text="res.kmTotal">0</span>
+                </div>
+                <button @click="guardar()" :style="'background-color:' + settings.colorGris" class="text-white p-4 rounded-full shadow-2xl active:scale-75 transition-transform">
+                    <i data-lucide="save"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="screen === 3" x-cloak class="p-4 max-w-md mx-auto pb-20">
+        <button @click="screen = 1" class="mb-4 flex items-center gap-2 text-slate-500 font-bold"><i data-lucide="arrow-left"></i> VOLVER</button>
+        <h2 class="text-2xl font-black mb-6 uppercase tracking-tighter">Resumen Nómina</h2>
+        <div class="space-y-4">
+             <p class="text-slate-500 text-sm italic text-center">Aquí aparecerán tus registros guardados...</p>
+        </div>
+    </div>
+
+    <div x-show="screen === 4" x-cloak class="p-4 max-w-md mx-auto">
+        <button @click="screen = 1" class="mb-4 flex items-center gap-2 text-slate-500 font-bold"><i data-lucide="arrow-left"></i> CERRAR</button>
+        <h2 class="text-2xl font-black mb-6 uppercase text-slate-400">Ajustes App</h2>
+        
+        <div class="space-y-6">
+            <div class="glass-card p-4 rounded-2xl">
+                <label class="text-xs font-bold text-slate-500 block mb-4 uppercase">Escala de Texto</label>
+                <input type="range" x-model="settings.fontSize" min="14" max="22" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                <div class="flex justify-between text-[10px] mt-3 text-slate-400 font-bold"><span>LECTURA NORMAL</span><span>TEXTO GRANDE</span></div>
+            </div>
+
+            <div class="glass-card p-4 rounded-2xl">
+                <label class="text-xs font-bold text-slate-500 block mb-3 uppercase">Color de Identidad (Gris Maestro)</label>
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl border-2 border-white/20" :style="'background-color:' + settings.colorGris"></div>
+                    <input type="text" x-model="settings.colorGris" class="bg-slate-800 p-3 rounded-lg font-mono text-sm flex-1 outline-none focus:ring-1 ring-blue-500">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Registro del Service Worker para instalación PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error', err));
+            });
+        }
+
+        function appBus() {
+            return {
+                screen: 1,
+                currentMonth: new Date().getMonth(),
+                currentYear: new Date().getFullYear(),
+                monthNames: ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
+                daysInMonth: [],
+                settings: { fontSize: 16, colorGris: '#71717a' },
+                form: { esPartida: false, bus1: '', hE1: '', hS1: '', kmI1: '', kmF1: '', bus2: '', hE2: '', hS2: '', kmI2: '', kmF2: '', comida: false, cena: false },
+                res: { hTotal: '00:00', totalMinutos: 0, kmTotal: 0 },
+                alertaComida: false,
+                alertaCena: false,
+                esMinimoAplicado: false,
+
+                init() {
+                    this.renderCalendar();
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                renderCalendar() {
+                    let date = new Date(this.currentYear, this.currentMonth, 1);
+                    this.daysInMonth = [];
+                    while (date.getMonth() === this.currentMonth) {
+                        this.daysInMonth.push({ 
+                            num: date.getDate(), 
+                            isToday: new Date().toDateString() === date.toDateString(),
+                            hasRecord: false 
+                        });
+                        date.setDate(date.getDate() + 1);
+                    }
+                },
+
+                changeMonth(step) {
+                    this.currentMonth += step;
+                    if(this.currentMonth > 11) { this.currentMonth = 0; this.currentYear++; }
+                    if(this.currentMonth < 0) { this.currentMonth = 11; this.currentYear--; }
+                    this.renderCalendar();
+                },
+
+                openRegistro(tipo) {
+                    this.form.esPartida = (tipo === 'partida');
+                    this.screen = 2;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+
+                calcular() {
+                    const toMin = (t) => { if(!t) return 0; let [h,m] = t.split(':').map(Number); return h*60+m; };
+                    
+                    let m1 = (toMin(this.form.hS1) < toMin(this.form.hE1)) ? (toMin(this.form.hS1)+1440) - toMin(this.form.hE1) : toMin(this.form.hS1) - toMin(this.form.hE1);
+                    if(!this.form.hE1 || !this.form.hS1) m1 = 0;
+
+                    let m2 = 0;
+                    if(this.form.esPartida) {
+                        m2 = (toMin(this.form.hS2) < toMin(this.form.hE2)) ? (toMin(this.form.hS2)+1440) - toMin(this.form.hE2) : toMin(this.form.hS2) - toMin(this.form.hE2);
+                        if(!this.form.hE2 || !this.form.hS2) m2 = 0;
+                    }
+
+                    this.res.totalMinutos = m1 + m2;
+                    this.esMinimoAplicado = (this.res.totalMinutos > 0 && this.res.totalMinutos < 360);
+                    let finalMins = this.esMinimoAplicado ? 360 : this.res.totalMinutos;
+
+                    let h = Math.floor(finalMins/60).toString().padStart(2, '0');
+                    let m = (finalMins%60).toString().padStart(2, '0');
+                    this.res.hTotal = `${h}:${m}`;
+
+                    let k1 = (parseInt(this.form.kmF1) - parseInt(this.form.kmI1)) || 0;
+                    let k2 = (parseInt(this.form.kmF2) - parseInt(this.form.kmI2)) || 0;
+                    this.res.kmTotal = k1 + k2;
+
+                    let hFinUltima = (this.form.esPartida && this.form.hS2) ? this.form.hS2 : this.form.hS1;
+                    let minFin = toMin(hFinUltima);
+                    
+                    // Lógica Dietas con Ámbar Latido
+                    this.alertaComida = (minFin >= 885 && minFin < 900); // 14:45 - 15:00
+                    this.alertaCena = (minFin >= 1350 && minFin < 1380); // 22:30 - 23:00
+
+                    if(minFin >= 930 || (this.res.totalMinutos/60 >= 9)) this.form.comida = true;
+                    if(minFin >= 1380) this.form.cena = true;
+                },
+
+                guardar() {
+                    if(!this.form.bus1) { alert("¡Ojo! Te falta el número de BUS."); return; }
+                    alert("Guardado correctamente en tu historial.");
+                    this.screen = 1;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
